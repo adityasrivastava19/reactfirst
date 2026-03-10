@@ -1,16 +1,16 @@
-import { useState,useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
 
 function App() {
   let [visible, setVisible] = useState(true);
-  useEffect(function(){
-    const timer = setTimeout(function(){
-      setVisible(c=>!c);
+  useEffect(function () {
+    const timer = setInterval(function () {
+      setVisible(c => !c);
     }, 5000);
-    return () => clearTimeout(timer);
+    return () => clearInterval(timer);
   }, []);
   return (
-    <div>
+    <div className="app-container">
       {visible && <Counter />}
     </div>
   )
@@ -19,19 +19,23 @@ function App() {
 function Counter() {
   const [count, setCount] = useState(0);
 
-  useEffect(function() {
-    const interval = setInterval(function(){
-      setCount(function(count){
-        return count+1;
+  useEffect(function () {
+    const interval = setInterval(function () {
+      setCount(function (count) {
+        return count + 1;
       })
-    },1000);
+    }, 1000);
     return () => clearInterval(interval);
-  },[]);
+  }, []);
+
   return (
-    <div>
-      <h1>{count}</h1>
-      <button onClick={() => setCount(count + 1)}>+</button>
-      <button onClick={() => setCount(count - 1)}>-</button>
+    <div className="counter-card">
+      <h1 className="count-display">{count}</h1>
+      <div className="button-group">
+        <button onClick={() => setCount(count - 1)}>−</button>
+        <button onClick={() => setCount(count + 1)}>+</button>
+      </div>
+      <div className="status-text">Counter Active</div>
     </div>
   )
 }
