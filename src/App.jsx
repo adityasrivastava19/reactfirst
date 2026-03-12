@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import './App.css'
+
+const API_URL = 'http://localhost:5000/api/state';
 
 function App() {
   const [toggleVisibility, setToggleVisibility] = useState(false);
@@ -38,24 +40,62 @@ function Counter() {
   const [paused, setPaused] = useState(false);
   const [step, setStep] = useState(1);
   const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch initial state
+  useEffect(() => {
+    fetch(API_URL)
+      .then(res => res.json())
+      .then(data => {
+        setCount(data.count || 0);
+        setHistory(data.history || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch state:', err);
+        setLoading(false);
+      });
+  }, []);
+
+  // Function to sync with backend
+  const syncWithBackend = useCallback((newCount, newHistory) => {
+    fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ count: newCount, history: newHistory })
+    })
+      .then(res => res.json())
+      .catch(err => console.error('Failed to sync state:', err));
+  }, []);
 
   useEffect(function () {
-    if (paused) return;
+    if (paused || loading) return;
 
     const interval = setInterval(function () {
       setCount(c => c + step);
     }, 1000);
     return () => clearInterval(interval);
-  }, [paused, step]);
+  }, [paused, step, loading]);
 
   const handleReset = () => {
-    setHistory([count, ...history].slice(0, 5));
+    const newHistory = [count, ...history].slice(0, 5);
+    setHistory(newHistory);
     setCount(0);
+    syncWithBackend(0, newHistory);
   };
 
   const saveMark = () => {
-    setHistory([count, ...history].slice(0, 5));
+    const newHistory = [count, ...history].slice(0, 5);
+    setHistory(newHistory);
+    syncWithBackend(count, newHistory);
   };
+
+  const updateCountAndSync = (newVal) => {
+    setCount(newVal);
+    // Optional: sync immediately or wait for Mark/Reset
+  };
+
+  if (loading) return <div className="counter-card">Loading state...</div>;
 
   return (
     <div className="counter-card">
@@ -77,11 +117,19 @@ function Counter() {
       <h1 className="count-display">{count}</h1>
 
       <div className="button-group main-controls">
-        <button onClick={() => setCount(count - step)} className="control-btn minus">−</button>
+        <button onClick={() => {
+          const next = count - step;
+          setCount(next);
+          syncWithBackend(next, history);
+        }} className="control-btn minus">−</button>
         <button onClick={() => setPaused(!paused)} className="control-btn pause-play">
           {paused ? '▶' : 'II'}
         </button>
-        <button onClick={() => setCount(count + step)} className="control-btn plus">+</button>
+        <button onClick={() => {
+          const next = count + step;
+          setCount(next);
+          syncWithBackend(next, history);
+        }} className="control-btn plus">+</button>
       </div>
 
       <div className="button-group secondary-controls">
