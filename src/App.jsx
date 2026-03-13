@@ -7,15 +7,62 @@ function App() {
   const [toggleVisibility, setToggleVisibility] = useState(false);
   const [visible, setVisible] = useState(true);
 
-  useEffect(function () {
+  // Lifted state to persist when component unmounts
+  const [count, setCount] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [step, setStep] = useState(1);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch initial state on mount
+  useEffect(() => {
+    let mounted = true;
+    fetch(API_URL)
+      .then(res => res.json())
+      .then(data => {
+        if (!mounted) return;
+        setCount(data.count || 0);
+        setHistory(data.history || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch state:', err);
+        if (mounted) setLoading(false);
+      });
+    return () => { mounted = false; };
+  }, []);
+
+  // Function to sync with backend
+  const syncWithBackend = useCallback((newCount, newHistory) => {
+    fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ count: newCount, history: newHistory })
+    })
+      .then(res => res.json())
+      .catch(err => console.error('Failed to sync state:', err));
+  }, []);
+
+  // Auto-increment logic runs regardless of visibility
+  useEffect(() => {
+    if (paused || loading) return;
+
+    const interval = setInterval(() => {
+      setCount(c => c + step);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [paused, step, loading]);
+
+  // Visibility toggle logic
+  useEffect(() => {
     if (!toggleVisibility) {
       setVisible(true);
-      return;
+    } else {
+      const timer = setInterval(() => {
+        setVisible(v => !v);
+      }, 5000);
+      return () => clearInterval(timer);
     }
-    const timer = setInterval(function () {
-      setVisible(c => !c);
-    }, 5000);
-    return () => clearInterval(timer);
   }, [toggleVisibility]);
 
   return (
@@ -30,53 +77,37 @@ function App() {
           Fluctuate Visibility (Reset every 5s)
         </label>
       </div>
-      {visible && <Counter />}
+      {visible && (
+        <Counter 
+          count={count}
+          setCount={setCount}
+          paused={paused}
+          setPaused={setPaused}
+          step={step}
+          setStep={setStep}
+          history={history}
+          setHistory={setHistory}
+          loading={loading}
+          syncWithBackend={syncWithBackend}
+        />
+      )}
     </div>
   )
 }
 
-function Counter() {
-  const [count, setCount] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const [step, setStep] = useState(1);
-  const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  // Fetch initial state
-  useEffect(() => {
-    fetch(API_URL)
-      .then(res => res.json())
-      .then(data => {
-        setCount(data.count || 0);
-        setHistory(data.history || []);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Failed to fetch state:', err);
-        setLoading(false);
-      });
-  }, []);
-
-  // Function to sync with backend
-  const syncWithBackend = useCallback((newCount, newHistory) => {
-    fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ count: newCount, history: newHistory })
-    })
-      .then(res => res.json())
-      .catch(err => console.error('Failed to sync state:', err));
-  }, []);
-
-  useEffect(function () {
-    if (paused || loading) return;
-
-    const interval = setInterval(function () {
-      setCount(c => c + step);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [paused, step, loading]);
-
+function Counter({ 
+  count, 
+  setCount, 
+  paused, 
+  setPaused, 
+  step, 
+  setStep, 
+  history, 
+  setHistory, 
+  loading, 
+  syncWithBackend 
+}) {
+  
   const handleReset = () => {
     const newHistory = [count, ...history].slice(0, 5);
     setHistory(newHistory);
@@ -88,11 +119,6 @@ function Counter() {
     const newHistory = [count, ...history].slice(0, 5);
     setHistory(newHistory);
     syncWithBackend(count, newHistory);
-  };
-
-  const updateCountAndSync = (newVal) => {
-    setCount(newVal);
-    // Optional: sync immediately or wait for Mark/Reset
   };
 
   if (loading) return <div className="counter-card">Loading state...</div>;
