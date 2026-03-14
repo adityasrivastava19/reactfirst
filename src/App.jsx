@@ -78,18 +78,21 @@ function App() {
         </label>
       </div>
       {visible && (
-        <Counter 
-          count={count}
-          setCount={setCount}
-          paused={paused}
-          setPaused={setPaused}
-          step={step}
-          setStep={setStep}
-          history={history}
-          setHistory={setHistory}
-          loading={loading}
-          syncWithBackend={syncWithBackend}
-        />
+        <div className="widgets-container" style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', justifyContent: 'center', width: '100%' }}>
+          <Counter 
+            count={count}
+            setCount={setCount}
+            paused={paused}
+            setPaused={setPaused}
+            step={step}
+            setStep={setStep}
+            history={history}
+            setHistory={setHistory}
+            loading={loading}
+            syncWithBackend={syncWithBackend}
+          />
+          <Timer />
+        </div>
       )}
     </div>
   )
@@ -177,6 +180,64 @@ function Counter({
       <div className="status-text">{paused ? 'Paused' : 'Auto-Incrementing'}</div>
     </div>
   )
+}
+
+function Timer() {
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
+
+  useEffect(() => {
+    let interval;
+    if (isRunning && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft(t => t - 1);
+      }, 1000);
+    } else if (timeLeft === 0 && isRunning) {
+      setIsRunning(false);
+    }
+    return () => clearInterval(interval);
+  }, [isRunning, timeLeft]);
+
+  const addTime = (seconds) => {
+    setTimeLeft(t => t + seconds);
+  };
+
+  const formatTime = (totalSeconds) => {
+    const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+    const s = (totalSeconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  return (
+    <div className="counter-card timer-card">
+      <div className="step-picker">
+        <span className="step-label">Add Time:</span>
+        <div className="step-buttons">
+          <button className="step-btn" onClick={() => addTime(60)} style={{width: '50px'}}>+1m</button>
+          <button className="step-btn" onClick={() => addTime(300)} style={{width: '50px'}}>+5m</button>
+        </div>
+      </div>
+
+      <h1 className="count-display">{formatTime(timeLeft)}</h1>
+
+      <div className="button-group main-controls">
+        <button 
+          onClick={() => setIsRunning(!isRunning)} 
+          className="control-btn pause-play"
+          disabled={timeLeft === 0 && !isRunning}
+          style={{ opacity: (timeLeft === 0 && !isRunning) ? 0.5 : 1 }}
+        >
+          {isRunning ? 'II' : '▶'}
+        </button>
+      </div>
+
+      <div className="button-group secondary-controls">
+        <button onClick={() => { setIsRunning(false); setTimeLeft(0); }} className="action-btn reset-btn">Reset</button>
+      </div>
+
+      <div className="status-text">{isRunning ? 'Running' : 'Idle'}</div>
+    </div>
+  );
 }
 
 export default App
