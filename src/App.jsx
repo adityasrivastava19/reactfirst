@@ -151,7 +151,7 @@ function Counter({
           setCount(next);
           syncWithBackend(next, history);
         }} className="control-btn minus">−</button>
-        <button onClick={() => setPaused(!paused)} className="control-btn pause-play">
+        <button onClick={() => setPaused(!paused)} className={`control-btn pause-play ${!paused ? 'active' : ''}`}>
           {paused ? '▶' : 'II'}
         </button>
         <button onClick={() => {
@@ -177,7 +177,7 @@ function Counter({
         </div>
       )}
 
-      <div className="status-text">{paused ? 'Paused' : 'Auto-Incrementing'}</div>
+      <div className={`status-text ${!paused ? 'active' : ''}`}>{paused ? 'Paused' : 'Auto-Incrementing'}</div>
     </div>
   )
 }
@@ -223,7 +223,7 @@ function Timer() {
       <div className="button-group main-controls">
         <button 
           onClick={() => setIsRunning(!isRunning)} 
-          className="control-btn pause-play"
+          className={`control-btn pause-play ${isRunning ? 'active' : ''}`}
           disabled={timeLeft === 0 && !isRunning}
           style={{ opacity: (timeLeft === 0 && !isRunning) ? 0.5 : 1 }}
         >
@@ -235,7 +235,7 @@ function Timer() {
         <button onClick={() => { setIsRunning(false); setTimeLeft(0); }} className="action-btn reset-btn">Reset</button>
       </div>
 
-      <div className="status-text">{isRunning ? 'Running' : 'Idle'}</div>
+      <div className={`status-text ${isRunning ? 'active' : ''}`}>{isRunning ? 'Running' : 'Idle'}</div>
     </div>
   );
 }
