@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import './App.css'
 
-const API_URL = 'http://localhost:5000/api/state';
+const BASE_URL = 'http://localhost:5000/api';
+const API_URL = `${BASE_URL}/state`;
 
 function App() {
+  const [user, setUser] = useState(null);
   const [toggleVisibility, setToggleVisibility] = useState(false);
   const [visible, setVisible] = useState(true);
 
@@ -16,7 +18,9 @@ function App() {
 
   // Fetch initial state on mount
   useEffect(() => {
+    if (!user) return;
     let mounted = true;
+    setLoading(true);
     fetch(API_URL)
       .then(res => res.json())
       .then(data => {
@@ -30,7 +34,7 @@ function App() {
         if (mounted) setLoading(false);
       });
     return () => { mounted = false; };
-  }, []);
+  }, [user]);
 
   // Function to sync with backend
   const syncWithBackend = useCallback((newCount, newHistory) => {
@@ -45,13 +49,13 @@ function App() {
 
   // Auto-increment logic runs regardless of visibility
   useEffect(() => {
-    if (paused || loading) return;
+    if (paused || loading || !user) return;
 
     const interval = setInterval(() => {
       setCount(c => c + step);
     }, 1000);
     return () => clearInterval(interval);
-  }, [paused, step, loading]);
+  }, [paused, step, loading, user]);
 
   // Visibility toggle logic
   useEffect(() => {
@@ -65,9 +69,13 @@ function App() {
     }
   }, [toggleVisibility]);
 
+  if (!user) {
+    return <AuthScreen onLogin={setUser} />;
+  }
+
   return (
     <div className="app-container">
-      <div className="top-controls">
+      <div className="top-controls" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: '800px', padding: '1rem 2rem' }}>
         <label className="toggle-label">
           <input
             type="checkbox"
@@ -76,6 +84,9 @@ function App() {
           />
           Fluctuate Visibility (Reset every 5s)
         </label>
+        <button className="logout-btn action-btn reset-btn" onClick={() => setUser(null)} style={{ height: '35px', padding: '0 1rem', flex: 'none' }}>
+          Logout <span style={{ marginLeft: '5px', opacity: 0.8, fontWeight: 'normal' }}>({user})</span>
+        </button>
       </div>
       {visible && (
         <div className="widgets-container" style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', justifyContent: 'center', width: '100%' }}>
@@ -96,6 +107,90 @@ function App() {
       )}
     </div>
   )
+}
+
+function AuthScreen({ onLogin }) {
+  const [isLogin, setIsLogin] = useState(true);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    const endpoint = isLogin ? '/login' : '/signup';
+    
+    try {
+      const res = await fetch(`${BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username, password })
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.message || 'Something went wrong');
+      }
+
+      if (isLogin) {
+        onLogin(data.username);
+      } else {
+        setIsLogin(true);
+        setUsername('');
+        setPassword('');
+        alert('Signup successful! Please log in.');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="auth-container">
+      <div className="auth-card counter-card">
+        <h2 className="auth-title">{isLogin ? 'Welcome Back' : 'Create Account'}</h2>
+        {error && <div className="auth-error">{error}</div>}
+        <form onSubmit={handleSubmit} className="auth-form">
+          <div className="form-group">
+            <label>Username</label>
+            <input 
+              type="text" 
+              value={username} 
+              onChange={(e) => setUsername(e.target.value)}
+              required 
+              placeholder="Enter your username"
+            />
+          </div>
+          <div className="form-group">
+            <label>Password</label>
+            <input 
+              type="password" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)}
+              required 
+              placeholder="Enter your password"
+            />
+          </div>
+          <button type="submit" className="action-btn save-btn auth-submit" disabled={loading}>
+            {loading ? 'Wait...' : isLogin ? 'Login' : 'Sign Up'}
+          </button>
+        </form>
+        <p className="auth-switch">
+          {isLogin ? "Don't have an account? " : "Already have an account? "}
+          <span onClick={() => setIsLogin(!isLogin)}>
+            {isLogin ? 'Sign up here' : 'Login here'}
+          </span>
+        </p>
+      </div>
+    </div>
+  );
 }
 
 function Counter({ 
@@ -124,7 +219,7 @@ function Counter({
     syncWithBackend(count, newHistory);
   };
 
-  if (loading) return <div className="counter-card">Loading state...</div>;
+  if (loading) return <div className="counter-card" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: '400px', fontSize: '1.2rem', color: '#a0aec0' }}>Loading state...</div>;
 
   return (
     <div className="counter-card">
